@@ -2,13 +2,21 @@
 clearvars;
 close all;
 
-%% Import and Preprocessing
-filename = 'CA (6)\JA4221NO.edf';
-[data,header] = import_data(filename);
+%% Parameters
+% Here are all the parameters you might want to change
+filename = 'CA (6)\JA4221NO.edf'; % Name of the file to use
 
+% Basis function params
+freq_steps = 46; % Number of radial basis functions for frequency
+eps1 = 2; % Width of the frequency Gaussians
+time_steps = 700; % Number of radial basis functions for time
+eps2 = 10; % Width of the time Gaussians
+
+%% Import and Preprocessing
+[data,header] = import_data(filename);
 EEG_data = bipolarMontage(data,header);
 
-clc;
+clc; % clear all the text dump from EEGLab import
 
 %% Signal Processing and Spectrograms
 % MT spectrogram parameters
@@ -26,26 +34,24 @@ caxis([-10 50]);
 
 %% Basis function setup
 % Frequency basis function
-eps1 = 2;
-freq_idx = linspace(1,1844,46);
+freq_idx = linspace(1,length(F),freq_steps);
 freq_idx = round(freq_idx);
-s1 = zeros(length(freq_idx));
+s1 = zeros(freq_steps);
 
-for i=1:length(freq_idx)
-    for j=1:length(freq_idx)
+for i=1:freq_steps
+    for j=1:freq_steps
         r = norm(F(freq_idx(j))-F(freq_idx(i)));
         s1(i,j) = exp(-(eps1*r)^2);
     end
 end
 
 % Time basis functions
-eps2 = 10;
-time_idx = linspace(1,7196,700);
+time_idx = linspace(1,length(T),time_steps);
 time_idx = round(time_idx);
-s2 = zeros(length(time_idx));
+s2 = zeros(time_steps);
 
-for i=1:length(time_idx)
-    for j=1:length(time_idx)
+for i=1:time_steps
+    for j=1:time_steps
         r = norm(T(time_idx(j))-T(time_idx(i)));
         s2(i,j) = exp(-(eps2*r)^2);
     end
@@ -53,15 +59,15 @@ end
 
 %% LASSO (frequency-time)
 % Lasso across frequency
-w_init = zeros(7196,length(freq_idx));
-for i=1:7196
+w_init = zeros(length(T),freq_steps);
+for i=1:length(T)
     l = lasso(s1,log10(S(i,freq_idx)));
     w_init(i,:) = l(:,1).';
 end
 
 % Lasso across time
-w = zeros(length(time_idx),length(freq_idx));
-for i=1:length(freq_idx)
+w = zeros(time_steps,freq_steps);
+for i=1:freq_steps
     l = lasso(s2,w_init(time_idx,i));
     w(:,i) = l(:,1).';
 end
