@@ -4,7 +4,7 @@ close all;
 
 %% Parameters
 % Here are all the parameters you might want to change
-filename = 'CA (6)\JA4221NO.edf'; % Name of the file to use
+filename = 'CA (12)\JA4221OG.edf'; % Name of the file to use
 
 % Basis function params
 freq_steps = 46; % Number of radial basis functions for frequency
