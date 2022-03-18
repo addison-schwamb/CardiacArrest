@@ -8,10 +8,12 @@ filename = 'CA (12)\JA4221OG.edf'; % Name of the file to use
 
 % Basis function params
 freq_steps = 46; % Number of radial basis functions for frequency
-eps1 = 2; % Width of the frequency Gaussians
+eps_freq = [1, 2, 5, 10]; % Width(s) of the frequency Gaussians
 time_steps = 700; % Number of radial basis functions for time
-eps2 = 10; % Width of the time Gaussians
+eps_time = [10]; % Width(s) of the time Gaussians
 
+% LASSO params
+err = 0.01; % Used for finding the optimal lambda value out of the ones returned
 %% Import and Preprocessing
 [data,header] = import_data(filename);
 EEG_data = bipolarMontage(data,header);
@@ -34,51 +36,65 @@ caxis([-10 50]);
 
 %% Basis function setup
 % Frequency basis function
+num_freq_widths = length(eps_freq);
 freq_idx = linspace(1,length(F),freq_steps);
 freq_idx = round(freq_idx);
-s1 = zeros(freq_steps);
+s_freq = zeros(freq_steps,num_freq_widths*freq_steps);
 
-for i=1:freq_steps
-    for j=1:freq_steps
-        r = norm(F(freq_idx(j))-F(freq_idx(i)));
-        s1(i,j) = exp(-(eps1*r)^2);
-    end
+for i=1:num_freq_widths*freq_steps
+    cur_eps = eps_freq(ceil(i/freq_steps)); % the width of the current basis function
+    cur_mean = freq_idx(mod(i-1,freq_steps)+1); % the index for the center (mean) of the current basis function
+    s_freq(:,i) = exp(-((F(freq_idx) - F(cur_mean)).^2)/(2*cur_eps));
 end
 
 % Time basis functions
+num_time_widths = length(eps_time);
 time_idx = linspace(1,length(T),time_steps);
 time_idx = round(time_idx);
-s2 = zeros(time_steps);
+s_time = zeros(time_steps,num_time_widths*time_steps);
 
 for i=1:time_steps
-    for j=1:time_steps
-        r = norm(T(time_idx(j))-T(time_idx(i)));
-        s2(i,j) = exp(-(eps2*r)^2);
+    cur_eps = eps_time(ceil(i/time_steps)); % the width of the current basis function
+    cur_mean = time_idx(mod(i-1,freq_steps)+1); % the index for the center (mean) of the current basis function
+    s_time(:,i) = exp(-((T(time_idx) - T(cur_mean)).^2)/(2*cur_eps));
+end
+
+%% LASSO (frequency)
+% Lasso across frequency
+w_freq = zeros(length(T),num_freq_widths*freq_steps);
+for i=1:length(T)
+    [l,FitInfo] = lasso(s_freq,log10(S(i,freq_idx)));
+    MSE_below_err = FitInfo.MSE(FitInfo.MSE<err);
+    w_freq(i,:) = l(:,length(MSE_below_err)).';
+end
+
+% Post-processing frequency
+w_freq = reshape(w_freq,length(T),freq_steps,[]);
+peak_locs = sum(w_freq,3);
+
+%% LASSO (time)
+% Lasso across time
+w_time = zeros(time_steps,freq_steps);
+for i=1:freq_steps
+    [l,FitInfo] = lasso(s_time,peak_locs(time_idx,i));
+    MSE_below_err = FitInfo.MSE(FitInfo.MSE<err);
+    try
+        w_time(:,i) = l(:,length(MSE_below_err)).';
+    catch
+        w_time(:,i) = l(:,1).';
     end
 end
 
-%% LASSO (frequency-time)
-% Lasso across frequency
-w_init = zeros(length(T),freq_steps);
-for i=1:length(T)
-    l = lasso(s1,log10(S(i,freq_idx)));
-    w_init(i,:) = l(:,1).';
-end
-
-% Lasso across time
-w = zeros(time_steps,freq_steps);
-for i=1:freq_steps
-    l = lasso(s2,w_init(time_idx,i));
-    w(:,i) = l(:,1).';
-end
-
+% Post-processing time
+w_time = reshape(w_time,time_steps,freq_steps,[]);
+peak_locs_time = sum(w_time,3);
 %% Plotting
 figure;
-imagesc(w_init.');
+imagesc(peak_locs.');
 axis xy
 colorbar
 
 figure;
-imagesc(w.');
+imagesc(peak_locs_time.');
 axis xy
 colorbar
