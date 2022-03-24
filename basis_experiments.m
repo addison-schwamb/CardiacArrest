@@ -48,3 +48,16 @@ axis xy
 figure;
 imagesc(peak_locs.');
 axis xy
+
+figure;
+subplot(1,2,1);
+imagesc(w(:,:,1).');
+axis xy
+
+subplot(1,2,2);
+imagesc(w(:,:,2).');
+axis xy
+
+figure;
+imagesc((w(:,:,1)*s(:,1:46).'));
+axis xy

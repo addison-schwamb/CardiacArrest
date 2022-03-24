@@ -8,12 +8,13 @@ filename = 'CA (12)\JA4221OG.edf'; % Name of the file to use
 
 % Basis function params
 freq_steps = 46; % Number of radial basis functions for frequency
-eps_freq = [1, 2, 5, 10, 50]; % Width(s) of the frequency Gaussians
-time_steps = 700; % Number of radial basis functions for time
+eps_freq = [1, 2, 5, 10]; % Width(s) of the frequency Gaussians
+time_steps = 350; % Number of radial basis functions for time
 eps_time = [10, 20, 50, 100, 500]; % Width(s) of the time Gaussians
 
 % LASSO params
-err = 0.01; % Used for finding the optimal lambda value out of the ones returned
+err_freq = 0.01; % Used for finding the optimal lambda value out of the ones returned
+err_time = 0.01;
 %% Import and Preprocessing
 [data,header] = import_data(filename);
 EEG_data = bipolarMontage(data,header);
@@ -59,59 +60,27 @@ for i=1:num_time_widths*time_steps
     s_time(:,i) = exp(-((T(time_idx) - T(cur_mean)).^2)/(2*cur_eps));
 end
 
-%% LASSO (frequency)
+%% LASSO
 % Lasso across frequency
-w_freq = zeros(length(T),num_freq_widths*freq_steps);
-for i=1:length(T)
-    [l,FitInfo] = lasso(s_freq,log10(S(i,freq_idx)));
-    MSE_below_err = FitInfo.MSE(FitInfo.MSE<err);
-    w_freq(i,:) = l(:,length(MSE_below_err)).';
-end
+w_freq = lasso_matrix(log10(S),s_freq,err_freq,freq_idx,1);
 
-% Post-processing frequency
-w_freq_3d = reshape(w_freq,length(T),freq_steps,[]);
-peak_locs_freq = sum(w_freq_3d,3);
-
-top = round(0.08*size(peak_locs_freq,1)*size(peak_locs_freq,2));
-[~,ind] = maxk(peak_locs_freq(:),top);
-new_peaks = zeros(length(T),freq_steps);
-new_peaks(ind) = peak_locs_freq(ind);
-
-%% LASSO (time)
 % Lasso across time
-% w_time = zeros(num_time_widths*time_steps,num_freq_widths*freq_steps);
-% for i=1:num_freq_widths*freq_steps
-%     [l,FitInfo] = lasso(s_time,w_freq(time_idx,i));
-%     MSE_below_err = FitInfo.MSE(FitInfo.MSE<err);
-%     try
-%         w_time(:,i) = l(:,length(MSE_below_err)).';
-%     catch
-%         w_time(:,i) = l(:,1).';
-%     end
-% end
-% 
+w_time = lasso_matrix(w_freq,s_time,err_time,time_idx,2);
+
 %% Post-processing
-% w = reshape(w_time,num_time_widths*time_steps,freq_steps,[]);
-% peak_locs = sum(w,3);
-% peak_locs = reshape(peak_locs.',freq_steps,time_steps,[]);
-% peak_locs = sum(peak_locs,3).';
-% 
-% top = round(0.01*size(peak_locs,1)*size(peak_locs,2));
-% [~,ind] = maxk(peak_locs(:),top);
-% new_peaks = zeros(time_steps,freq_steps);
-% new_peaks(ind) = peak_locs(ind);
+peak_locs_freq = reshape(w_time,num_time_widths*time_steps,freq_steps,[]);
+peak_locs_freq = sum(peak_locs_freq,3);
+
+peak_locs_ft = reshape(peak_locs_freq.',freq_steps,time_steps,[]);
+peak_locs_ft = sum(peak_locs_ft,3).';
+
+% top = round(0.01*size(peak_locs_freq,1)*size(peak_locs_freq,2));
+% [~,ind] = maxk(peak_locs_freq(:),top);
+% new_peaks = zeros(size(peak_locs_freq,1),size(peak_locs_freq,2));
+% new_peaks(ind) = peak_locs_freq(ind);
 
 %% Plotting
-% figure;
-% imagesc(peak_locs.');
-% axis xy
-% colorbar
-
 figure;
-imagesc(peak_locs_freq.');
+imagesc(peak_locs_ft.');
 axis xy
 colorbar
-
-figure;
-imagesc(new_peaks.');
-axis xy
