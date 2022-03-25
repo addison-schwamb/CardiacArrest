@@ -57,7 +57,3 @@ axis xy
 subplot(1,2,2);
 imagesc(w(:,:,2).');
 axis xy
-
-figure;
-imagesc((w(:,:,1)*s(:,1:46).'));
-axis xy
