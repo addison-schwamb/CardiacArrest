@@ -74,11 +74,6 @@ peak_locs_freq = sum(peak_locs_freq,3);
 peak_locs_ft = reshape(peak_locs_freq.',freq_steps,time_steps,[]);
 peak_locs_ft = sum(peak_locs_ft,3).';
 
-% top = round(0.01*size(peak_locs_freq,1)*size(peak_locs_freq,2));
-% [~,ind] = maxk(peak_locs_freq(:),top);
-% new_peaks = zeros(size(peak_locs_freq,1),size(peak_locs_freq,2));
-% new_peaks(ind) = peak_locs_freq(ind);
-
 %% Plotting
 figure;
 imagesc(peak_locs_ft.');
