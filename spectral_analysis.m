@@ -1,6 +1,6 @@
 %% Clean up the environment
 clearvars;
-close all;
+% close all;
 
 %% Parameters
 % Here are all the parameters you might want to change
@@ -32,6 +32,7 @@ ch = 12;
 oneChannel = EEG_data(ch,:);
 oneChannel = oneChannel - mean(oneChannel);
 [S,T,F] = mtspecgramc(oneChannel,[30 6],params);
+figure;
 plot_matrix(S,(T./60),F);
 caxis([-10 50]);
 
@@ -65,17 +66,17 @@ end
 w_freq = lasso_matrix(log10(S),s_freq,err_freq,freq_idx,1);
 
 % Lasso across time
-w_time = lasso_matrix(w_freq,s_time,err_time,time_idx,2);
+% w_time = lasso_matrix(w_freq,s_time,err_time,time_idx,2);
 
 %% Post-processing
-peak_locs_freq = reshape(w_time,num_time_widths*time_steps,freq_steps,[]);
+peak_locs_freq = reshape(w_freq,length(S),freq_steps,[]);
 peak_locs_freq = sum(peak_locs_freq,3);
 
-peak_locs_ft = reshape(peak_locs_freq.',freq_steps,time_steps,[]);
-peak_locs_ft = sum(peak_locs_ft,3).';
+% peak_locs_ft = reshape(peak_locs_freq.',freq_steps,time_steps,[]);
+% peak_locs_ft = sum(peak_locs_ft,3).';
 
 %% Plotting
 figure;
-imagesc(peak_locs_ft.');
+imagesc(peak_locs_freq.');
 axis xy
 colorbar
